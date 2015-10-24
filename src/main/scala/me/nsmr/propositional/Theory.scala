@@ -4,9 +4,9 @@ import objects._
 import scala.annotation.tailrec
 import implicitConversions._
 
-object Program {
-  def getTestProgram = {
-    Program (
+object Theory {
+  def getTestTheory = {
+    Theory(
         "test3"
         , "test4"
         , "test" :- "test2"
@@ -18,9 +18,9 @@ object Program {
   }
 }
 
-case class Program(lines: LogicUnit*) {
+case class Theory(lines: LogicUnit*) {
   def source = lines.map(_.toString() + ".").mkString("\n")
-  
+
   def find(question: LogicUnit) = {
     new Iterator[Result[LogicUnit]] {
       val it = lines.iterator
@@ -47,7 +47,7 @@ case class Program(lines: LogicUnit*) {
     question match {
       case Complete =>
         SingleIterator(Success(Complete))
-      case Set(Complete, cdr) => Program.this ?- cdr
+      case Set(Complete, cdr) => Theory.this ?- cdr
       case question =>
         new Iterator[Result[LogicUnit]] {
           val iterator = lines.iterator
@@ -70,7 +70,7 @@ case class Program(lines: LogicUnit*) {
               }
               else {
                 iterator.next.unify(question) match {
-                  case Success(subgoal) => lineIterator = (Program.this ?- subgoal)
+                  case Success(subgoal) => lineIterator = (Theory.this ?- subgoal)
                   case _ => lineIterator = null
                 }
                 read
