@@ -14,6 +14,7 @@ object Theory {
         , "test5" :- ("test4")
         , "test6" :- ("test3", "test")
         , "test7" :- ("test6", "test5")
+        , "test8" :- ("test2" or "test")
         )
   }
 }

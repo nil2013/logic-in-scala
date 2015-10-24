@@ -14,12 +14,20 @@ object LogicUnit {
         case Failure => Failure
       }
   }
+  private[objects] def unifyWithOr(me: LogicUnit): LogicUnit --> Result[LogicUnit] = {
+    case Or(head, tail) =>
+      me.unify(head) match {
+        case Failure => me.unify(tail)
+        case result  => result
+      }
+  }
 }
-
 abstract class LogicUnit {
   def unifyWithSet = LogicUnit.unifyWithSet(this)
+  def unifyWithOr = LogicUnit.unifyWithOr(this)
   def unify: LogicUnit --> Result[LogicUnit]
 }
+
 case object Complete extends LogicUnit {
   override def toString = "true"
   def unify = { case _ => Failure }
@@ -27,18 +35,19 @@ case object Complete extends LogicUnit {
 
 case class Constant[T](value: T) extends LogicUnit {
   override def toString = value.toString
-  def unify = unifyWithSet orElse {
+  def unify = unifyWithSet orElse unifyWithOr orElse {
     case c @ Constant(v) if v == this.value => Success(Complete)
     case _ => Failure
   }
   def :- (con: LogicUnit*) = {
     Imply(this, con.reduce((car, cdr) => Set(car, cdr)))
   }
+  def or(tail: LogicUnit) = Or(this, tail)
 }
 
 case class Imply(head: LogicUnit, body: LogicUnit) extends LogicUnit {
   override def toString = head.toString() + " :- " + body.toString()
-  def unify = unifyWithSet orElse {
+  def unify = unifyWithSet orElse unifyWithOr orElse {
     case h: LogicUnit =>
       head.unify(h) match {
         case Success(obj) =>
@@ -56,4 +65,25 @@ case class Set(car: LogicUnit, cdr: LogicUnit) extends LogicUnit {
     case x              => s"(${x})"
   }) + ", " + cdr.toString()
   def unify = throw new UnsupportedOperationException
+  def or(tail: LogicUnit) = Or(this, tail)
+}
+
+case class Or(head: LogicUnit, tail: LogicUnit) extends LogicUnit {
+  override def toString = (head match {
+    case c: Constant[_] => c.toString()
+    case x              => s"(${x})"
+  }) + " or " + tail.toString()
+  def unify = {
+    case Set(car, cdr) =>
+      head.unify(car) match {
+        case Failure => tail.unify(car)
+        case result  => result
+      }
+    case h: LogicUnit =>
+      head.unify(h) match {
+        case Failure => tail.unify(h)
+        case result  => result
+      }
+    case _ => Failure
+  }
 }
