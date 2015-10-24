@@ -4,19 +4,22 @@ package object implicitConversions {
   implicit def anyValToConstant[T<:AnyVal](obj: T) = Constant(obj)
   implicit def charSequenceToConstant[T<:CharSequence](obj: T) = Constant(obj)
 }
-abstract class LogicUnit {
-  def unifyWithSet: LogicUnit --> Result[LogicUnit] = {
+object LogicUnit {
+  private[objects] def unifyWithSet(me: LogicUnit): LogicUnit --> Result[LogicUnit] = {
     case Set(Complete, tail) =>
-      this.unify(tail)
+      me.unify(tail)
     case set @ Set(car, cdr) =>
-      this.unify(car) match {
+      me.unify(car) match {
         case Success(car) => Success(set.copy(car = car))
         case Failure => Failure
       }
   }
-  def unify: LogicUnit --> Result[LogicUnit]
 }
 
+abstract class LogicUnit {
+  def unifyWithSet = LogicUnit.unifyWithSet(this)
+  def unify: LogicUnit --> Result[LogicUnit]
+}
 case object Complete extends LogicUnit {
   override def toString = "true"
   def unify = { case _ => Failure }
@@ -24,7 +27,7 @@ case object Complete extends LogicUnit {
 
 case class Constant[T](value: T) extends LogicUnit {
   override def toString = value.toString
-  def unify = unifyWithSet.orElse {
+  def unify = unifyWithSet orElse {
     case c @ Constant(v) if v == this.value => Success(Complete)
     case _ => Failure
   }
@@ -35,16 +38,7 @@ case class Constant[T](value: T) extends LogicUnit {
 
 case class Imply(head: LogicUnit, body: LogicUnit) extends LogicUnit {
   override def toString = head.toString() + " :- " + body.toString()
-  def unify = {
-    case Set(Complete, tail) =>
-      this.unify(tail)
-    case set @ Set(car, cdr) =>
-      head.unify(car) match {
-        case Success(obj) =>
-          println(s"$body implies $head")
-          Success(set.copy(car=Set(obj, this.body)))
-        case Failure           => Failure
-      }
+  def unify = unifyWithSet orElse {
     case h: LogicUnit =>
       head.unify(h) match {
         case Success(obj) =>
@@ -58,8 +52,8 @@ case class Imply(head: LogicUnit, body: LogicUnit) extends LogicUnit {
 
 case class Set(car: LogicUnit, cdr: LogicUnit) extends LogicUnit {
   override def toString = (car match {
-    case set: Set => s"(${set})"
-    case x => x.toString()
+    case c: Constant[_] => c.toString()
+    case x              => s"(${x})"
   }) + ", " + cdr.toString()
   def unify = throw new UnsupportedOperationException
 }
